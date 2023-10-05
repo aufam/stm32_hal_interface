@@ -10,3 +10,6 @@ target_include_directories(periph PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 
 # defines
 target_compile_definitions(periph PUBLIC -DPERIPH_VERSION="${PERIPH_VERSION}")
+
+# depends
+target_link_libraries(periph etl)
