@@ -18,13 +18,13 @@ namespace Project::periph {
     struct UART {
         using RxCallback = etl::Function<void(const uint8_t*, size_t), void*>;  ///< rx callback function class
         using TxCallback = etl::Function<void(), void*>;                        ///< tx callback function class
-        using Buffer = etl::Array<uint8_t, 64>;                                 ///< UART rx buffer class
+        using Buffer = etl::Array<uint8_t, PERIPH_UART_RX_BUFFER_SIZE>;         ///< UART rx buffer class
         inline static detail::UniqueInstances<UART*, 16> Instances;
 
-        UART_HandleTypeDef &huart;  ///< UART handler configured by cubeMX
-        RxCallback rxCallback = {}; ///< rx callback function
-        TxCallback txCallback = {}; ///< tx callback function
-        Buffer rxBuffer = {};       ///< rx buffer
+        UART_HandleTypeDef &huart;                              ///< UART handler configured by cubeMX
+        detail::UniqueInstances<RxCallback, 16> rxCallbackList = {}; ///< rx callback function
+        detail::UniqueInstances<TxCallback, 16> txCallbackList = {}; ///< tx callback function
+        Buffer rxBuffer = {};                                   ///< rx buffer
 
         UART(const UART&) = delete;             ///< disable copy constructor
         UART& operator=(const UART&) = delete;  ///< disable copy assignment
@@ -38,19 +38,23 @@ namespace Project::periph {
             HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.data(), rxBuffer.len());
             #endif
             __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT);
+            Instances.push(this);
         }
 
         /// disable receive
         void deinit() { 
-            #ifdef PERIPH_UART_RECEIVE_USE_IT
-            HAL_UART_Abort_IT(&huart); 
-            #endif
-            #ifdef PERIPH_UART_RECEIVE_USE_DMA
-            HAL_UART_DMAStop(&huart); 
-            #endif
+            if (rxCallbackList.isEmpty() && txCallbackList.isEmpty()) {
+                #ifdef PERIPH_UART_RECEIVE_USE_IT
+                HAL_UART_Abort_IT(&huart); 
+                #endif
+                #ifdef PERIPH_UART_RECEIVE_USE_DMA
+                HAL_UART_DMAStop(&huart); 
+                #endif
+                Instances.pop(this);
+            }
         }
 
-        struct TransmitBlockingArgs { const void *buf; size_t len; etl::Time timeout = etl::time::infinite; };
+        struct TransmitBlockingTimeoutArgs { etl::Time timeout; };
 
         /// UART transmit blocking
         /// @param args
@@ -58,24 +62,22 @@ namespace Project::periph {
         ///     - .len buffer length
         ///     - .timeout default = time::infinite
         /// @retval HAL_StatusTypeDef (see stm32fXxx_hal_def.h)
-        int transmitBlocking(TransmitBlockingArgs args) {
+        int transmitBlocking(const void *buf, size_t len, TransmitBlockingTimeoutArgs args = {.timeout=etl::time::infinite}) {
             while (huart.gState != HAL_UART_STATE_READY);
-            return HAL_UART_Transmit(&huart, (uint8_t *) args.buf, args.len, args.timeout.tick);
+            return HAL_UART_Transmit(&huart, (uint8_t *) buf, len, args.timeout.tick);
         }
-
-        struct TransmitArgs { const void *buf; size_t len; };
 
         /// UART transmit non blocking
         /// @param args
         ///     - .buf data buffer
         ///     - .len buffer length
         /// @retval HAL_StatusTypeDef (see stm32fXxx_hal_def.h)
-        int transmit(TransmitArgs args) { 
+        int transmit(const void *buf, size_t len) { 
             #ifdef PERIPH_UART_TRANSMIT_USE_IT
-            return HAL_UART_Transmit_IT(&huart, (uint8_t *) args.buf, args.len); 
+            return HAL_UART_Transmit_IT(&huart, (uint8_t *) buf, len); 
             #endif
             #ifdef PERIPH_UART_TRANSMIT_USE_DMA
-            return HAL_UART_Transmit_DMA(&huart, (uint8_t *) args.buf, args.len); 
+            return HAL_UART_Transmit_DMA(&huart, (uint8_t *) buf, len); 
             #endif
         }
 
@@ -92,13 +94,13 @@ namespace Project::periph {
         /// write blocking operator for etl::string
         template <size_t N>
         UART& operator<<(const etl::String<N>& str) { 
-            transmitBlocking({.buf=str.data(), .len=str.len()}); 
+            transmitBlocking(str.data(), str.len()); 
             return *this; 
         }
 
         /// write blocking operator for traditional string
         UART& operator<<(const char *str) { 
-            transmitBlocking({.buf=str, .len=strlen(str)}); 
+            transmitBlocking(str, strlen(str)); 
             return *this; 
         }
     };

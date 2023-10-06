@@ -21,7 +21,9 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     if (uart == nullptr)
         return;
 
-    uart->rxCallback(uart->rxBuffer.data(), Size);
+    for (auto& callback : uart->rxCallbackList.instances) {
+        callback(uart->rxBuffer.data(), Size);
+    }
     uart->init();
 }
 
@@ -30,7 +32,9 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
     if (uart == nullptr)
         return;
 
-    uart->txCallback();
+    for (auto& callback : uart->txCallbackList.instances) {
+        callback();
+    }
 }
 
 #endif

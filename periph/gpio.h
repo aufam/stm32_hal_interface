@@ -55,7 +55,9 @@ namespace Project::periph {
                 .Mode = args.mode,
                 .Pull = args.pull,
                 .Speed = args.speed,
+            #ifndef STM32F103xB
                 .Alternate = 0
+            #endif
             };
             HAL_GPIO_Init(port, &gpioInitStruct);
 

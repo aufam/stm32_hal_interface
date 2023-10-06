@@ -25,24 +25,22 @@ namespace Project::periph {
         USBD(const USBD&) = delete; ///< disable copy constructor
         USBD& operator=(const USBD&) = delete;  ///< disable move constructor
 
-        struct TransmitArgs { const void *buf; size_t len; };
-
         /// USB transmit non blocking
         /// @param buf data buffer
         /// @param len buffer length
         /// @retval @ref USBD_StatusTypeDef (see usbd_def.h)
-        int transmit(TransmitArgs args) { return CDC_Transmit_FS((uint8_t*) args.buf, args.len); }
+        int transmit(const void *buf, size_t len) { return CDC_Transmit_FS((uint8_t*) buf, len); }
 
         /// write operator for etl::string
         template <size_t N>
         USBD& operator<<(const etl::String<N>& str) { 
-            transmit({.buf=str.data(), .len=str.len()}); 
+            transmit(str.data(), str.len()); 
             return *this; 
         }
 
         /// write operator for traditional string
         USBD& operator<<(const char *str) { 
-            transmit({.buf=str, .len=strlen(str)}); 
+            transmit(str, strlen(str)); 
             return *this; 
         }
     };

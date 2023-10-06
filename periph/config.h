@@ -73,6 +73,10 @@
 #define PERIPH_UART_TRANSMIT_USE_IT
 #endif
 
+#if !defined(PERIPH_UART_RX_BUFFER_SIZE)
+#define PERIPH_UART_RX_BUFFER_SIZE 64
+#endif
+
 namespace Project::periph::detail {
 
     template <typename T, size_t N>

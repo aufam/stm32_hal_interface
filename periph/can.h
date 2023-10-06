@@ -16,7 +16,7 @@ namespace Project::periph {
     struct CAN {
         struct Message : CAN_RxHeaderTypeDef { uint8_t data[8]; };
         using Callback = etl::Function<void(Message &), void*>;
-        using CallbackList = detail::UniqueInstances<Callback, PERIPH_CALLBACK_LIST_MAX_SIZE>
+        using CallbackList = detail::UniqueInstances<Callback, PERIPH_CALLBACK_LIST_MAX_SIZE>;
         inline static detail::UniqueInstances<CAN*, 3> Instances;
 
         enum {
@@ -43,7 +43,7 @@ namespace Project::periph {
         CAN(const CAN&) = delete;               ///< disable copy constructor
         CAN& operator=(const CAN&) = delete;    ///< disable copy assignment
 
-        struct InitArgs { bool idType };
+        struct InitArgs { bool idType; };
 
         /// start CAN and activate notification at RX FIFO message pending
         /// @param args
@@ -60,8 +60,8 @@ namespace Project::periph {
 
         /// stop CAN 
         void deinit() { 
-            if (callbackList.isEmpty()) {
-                HAL_CAN_Stop(&hadc); 
+            if (rxCallbackList.isEmpty()) {
+                HAL_CAN_Stop(&hcan); 
                 Instances.pop(this);
             }
         }
@@ -113,6 +113,16 @@ namespace Project::periph {
             return txHeader.IDE == CAN_ID_EXT;
         }
 
+        /// CAN transmit non blocking
+        /// @param buf pointer to data buffer
+        /// @param len buffer length, maximum 8 bytes, default 8
+        /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
+        int transmit(const uint8_t* buf, uint16_t len = 8) {
+            if (len > 8) len = 8;
+            txHeader.DLC = len;
+            return HAL_CAN_AddTxMessage(&hcan, &txHeader, const_cast<uint8_t*>(buf), &txMailbox);
+        }
+
         struct TransmitArgs { const uint8_t* buf; uint16_t len = 8; };
 
         /// CAN transmit non blocking
@@ -121,9 +131,7 @@ namespace Project::periph {
         ///     - .len buffer length, maximum 8 bytes, default 8
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
         int transmit(TransmitArgs args) {
-            if (args.len > 8) args.len = 8;
-            txHeader.DLC = args.len;
-            return HAL_CAN_AddTxMessage(&hcan, &txHeader, const_cast<uint8_t*>(args.buf), &txMailbox);
+            return transmit(args.buf, args.len);
         }
 
         struct TransmitTxIdArgs { uint32_t txId; const uint8_t* buf; uint16_t len = 8; };
@@ -139,7 +147,7 @@ namespace Project::periph {
             return transmit(args.buf, args.len);
         }
 
-        struct TransmitIdTypeTxIdArgs { uint32_t txId; const uint8_t* buf; uint16_t len = 8; };
+        struct TransmitIdTypeTxIdArgs { bool idType; uint32_t txId; const uint8_t* buf; uint16_t len = 8; };
 
         /// CAN transmit non blocking with specific tx ID and set ID type
         /// @param args

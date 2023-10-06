@@ -9,7 +9,7 @@ static CAN* selector(CAN_HandleTypeDef *hcan_) {
         if (instance == nullptr)
             continue;
 
-        if (hcan_->Instance == instance->hcan_.Instance)
+        if (hcan_->Instance == instance->hcan.Instance)
             return instance;
     }
 
@@ -29,7 +29,7 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan_) {
 
     CAN::Message msg = {};
     HAL_CAN_GetRxMessage(&can->hcan, CAN::RX_FIFO, reinterpret_cast<CAN_RxHeaderTypeDef *>(&msg), msg.data);
-    for (auto callback : adc->callbackList.instances)
+    for (auto callback : can->rxCallbackList.instances)
         callback(msg);
 }
 

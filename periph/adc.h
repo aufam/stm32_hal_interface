@@ -17,7 +17,7 @@ namespace Project::periph {
     ///     - DMA continuous request
     struct ADCD {
         using Callback = etl::Function<void(), void*>;
-        using CallbackList = detail::UniqueInstances<Callback, PERIPH_CALLBACK_LIST_MAX_SIZE>
+        using CallbackList = detail::UniqueInstances<Callback, PERIPH_CALLBACK_LIST_MAX_SIZE>;
         inline static detail::UniqueInstances<ADCD*, 3> Instances;
         static const size_t N_CHANNEL = PERIPH_ADC_N_CHANNEL;
 

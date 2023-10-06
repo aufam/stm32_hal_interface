@@ -1,6 +1,8 @@
 #ifndef PERIPH_ALL_H
 #define PERIPH_ALL_H
 
+#include "periph/adc.h"
+#include "periph/can.h"
 #include "periph/encoder.h"
 #include "periph/exti.h"
 #include "periph/gpio.h"
