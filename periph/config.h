@@ -8,7 +8,7 @@
 
 // Timebase source
 #if !defined(PERIPH_TIME_BASE_SOURCE)
-#define PERIPH_TIME_BASE_SOURCE htim11
+#define PERIPH_TIME_BASE_SOURCE htim14
 #endif
 
 // ADC

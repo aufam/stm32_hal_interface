@@ -3,6 +3,7 @@
 
 #include "periph/adc.h"
 #include "periph/can.h"
+#include "periph/bootloader.h"
 #include "periph/encoder.h"
 #include "periph/exti.h"
 #include "periph/gpio.h"

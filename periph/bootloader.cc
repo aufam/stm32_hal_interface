@@ -5,7 +5,7 @@
 #if defined(STM32F405xx)
 
 extern "C" USBD_HandleTypeDef hUsbDeviceFS;
-extern "C" TIM_HandleTypeDef        htim11;
+extern "C" TIM_HandleTypeDef        htim14;
 
 #define BOOT_ADDR	0x1FFF0000	// stm32f405 system memory base addres, check on Ref Manual, Table 5. Flash module organization (STM32F40x and STM32F41x)
 #define	MCU_IRQS	82u	// no. of NVIC IRQ inputs, check NVIC Feature on Ref Manual
@@ -32,9 +32,9 @@ void periph::jumpToBootLoader() {
 	__disable_irq();
 
 	/* Disable Systick timer (timebase) */
-	HAL_TIM_Base_Stop(&htim11);
-	__HAL_TIM_DISABLE_IT(&htim11, TIM_IT_UPDATE);
-	__HAL_RCC_TIM11_CLK_DISABLE();
+	HAL_TIM_Base_Stop(&htim14);
+	__HAL_TIM_DISABLE_IT(&htim14, TIM_IT_UPDATE);
+	__HAL_RCC_TIM12_CLK_DISABLE();
 
 	SysTick->CTRL = 0;
 

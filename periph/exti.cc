@@ -28,8 +28,8 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
             continue; // skip if the triggered pin is not instance pin
         
         if (pinNow != pinPrev || etl::time::elapsed(timePrev) > instance->debounceDelay) {
-            instance->callback();
             instance->counter++;
+            instance->callback();
             return;
         }
     }
