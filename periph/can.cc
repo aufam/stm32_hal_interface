@@ -4,6 +4,8 @@
 
 using namespace Project::periph;
 
+detail::UniqueInstances<CAN*, 3> CAN::Instances;
+
 static CAN* selector(CAN_HandleTypeDef *hcan_) {
     for (auto instance : CAN::Instances.instances) {
         if (instance == nullptr)
@@ -29,7 +31,7 @@ void HAL_CAN_RxFifo1MsgPendingCallback(CAN_HandleTypeDef *hcan_) {
 
     CAN::Message msg = {};
     HAL_CAN_GetRxMessage(&can->hcan, CAN::RX_FIFO, reinterpret_cast<CAN_RxHeaderTypeDef *>(&msg), msg.data);
-    for (auto callback : can->rxCallbackList.instances)
+    for (auto& callback : can->rxCallbackList.instances)
         callback(msg);
 }
 

@@ -17,7 +17,7 @@ namespace Project::periph {
         struct Message : CAN_RxHeaderTypeDef { uint8_t data[8]; };
         using Callback = etl::Function<void(Message &), void*>;
         using CallbackList = detail::UniqueInstances<Callback, PERIPH_CALLBACK_LIST_MAX_SIZE>;
-        inline static detail::UniqueInstances<CAN*, 3> Instances;
+        static detail::UniqueInstances<CAN*, 3> Instances;
 
         enum {
             #ifdef PERIPH_CAN_USE_FIFO0

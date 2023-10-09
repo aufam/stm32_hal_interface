@@ -14,7 +14,7 @@ namespace Project::periph {
     /// @note requirements: TIMx input capture mode, TIMx global interrupt
     struct InputCapture {
         using Callback = etl::Function<void(), void*>;
-        inline static detail::UniqueInstances<InputCapture*, 16> Instances;
+        static detail::UniqueInstances<InputCapture*, 16> Instances;
 
         TIM_HandleTypeDef& htim;        ///< TIM handler configured by cubeMX
         uint32_t channel;               ///< TIM_CHANNEL_x

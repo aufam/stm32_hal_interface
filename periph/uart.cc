@@ -4,6 +4,8 @@
 
 using namespace Project::periph;
 
+detail::UniqueInstances<UART*, 16> UART::Instances;
+
 static UART* selector(UART_HandleTypeDef *huart) {
     for (auto instance : UART::Instances.instances) {
         if (instance == nullptr)

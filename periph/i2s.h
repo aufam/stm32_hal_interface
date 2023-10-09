@@ -19,7 +19,7 @@ namespace Project::periph {
     ///     - 16 bits data on 16 bits frame
     ///     - tx & rx DMA circular 16 bit
     struct I2S {
-        inline static detail::UniqueInstances<I2S*, 16> Instances;
+        static detail::UniqueInstances<I2S*, 16> Instances;
 
         typedef int16_t Mono;
         struct Stereo { Mono left, right; };

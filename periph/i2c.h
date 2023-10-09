@@ -15,7 +15,7 @@ namespace Project::periph {
     /// @note requirements: event interrupt, tx DMA/IT
     struct I2C {
         using Callback = etl::Function<void(), void*>; 
-        inline static detail::UniqueInstances<I2C*, 16> Instances;
+        static detail::UniqueInstances<I2C*, 16> Instances;
 
         I2C_HandleTypeDef &hi2c;    ///< I2C handler configured by cubeMX
         Callback txCallback = {};   ///< transmit complete callback function

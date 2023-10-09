@@ -4,6 +4,9 @@
 
 using namespace Project::periph;
 
+detail::UniqueInstances<I2S*, 16> I2S::Instances;
+
+
 static I2S* selector(I2S_HandleTypeDef *hi2s) {
     for (auto instance : I2S::Instances.instances) {
         if (instance == nullptr)

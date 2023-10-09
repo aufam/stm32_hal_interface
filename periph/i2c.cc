@@ -4,6 +4,8 @@
 
 using namespace Project::periph;
 
+detail::UniqueInstances<I2C*, 16> I2C::Instances;
+
 static I2C* selector(I2C_HandleTypeDef *hi2c) {
     for (auto instance : I2C::Instances.instances) {
         if (instance == nullptr)

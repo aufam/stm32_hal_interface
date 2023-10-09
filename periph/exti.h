@@ -15,7 +15,7 @@ namespace Project::periph {
     struct Exti {
         using Callback = etl::Function<void(), void*>;
         static constexpr etl::Time debounceDelayDefault = etl::time::milliseconds(250);
-        inline static detail::UniqueInstances<Exti*, 16> Instances;
+        static detail::UniqueInstances<Exti*, 16> Instances;
 
         uint16_t pin;                                    ///< GPIO_PIN_x
         Callback callback = {};                          ///< callback functions for the pin

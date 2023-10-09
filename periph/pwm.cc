@@ -4,6 +4,8 @@
 
 using namespace Project::periph;
 
+detail::UniqueInstances<PWM*, 16> PWM::Instances;
+
 static HAL_TIM_ActiveChannel activeChannel(uint32_t channel) {
     switch (channel) {
         case TIM_CHANNEL_1: return HAL_TIM_ACTIVE_CHANNEL_1;

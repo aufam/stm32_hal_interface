@@ -4,6 +4,8 @@
 
 using namespace Project::periph;
 
+detail::UniqueInstances<ADCD*, 3> ADCD::Instances;
+
 static ADCD* selector(ADC_HandleTypeDef* hadc) {
     for (auto instance : ADCD::Instances.instances) {
         if (instance == nullptr)
@@ -21,7 +23,7 @@ void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     if (adc == nullptr)
         return;
 
-    for (auto callback : adc->callbackList.instances)
+    for (auto& callback : adc->callbackList.instances)
         callback();
 }
 

@@ -19,7 +19,7 @@ namespace Project::periph {
         using RxCallback = etl::Function<void(const uint8_t*, size_t), void*>;  ///< rx callback function class
         using TxCallback = etl::Function<void(), void*>;                        ///< tx callback function class
         using Buffer = etl::Array<uint8_t, PERIPH_UART_RX_BUFFER_SIZE>;         ///< UART rx buffer class
-        inline static detail::UniqueInstances<UART*, 16> Instances;
+        static detail::UniqueInstances<UART*, 16> Instances;
 
         UART_HandleTypeDef &huart;                              ///< UART handler configured by cubeMX
         detail::UniqueInstances<RxCallback, 16> rxCallbackList = {}; ///< rx callback function
