@@ -2,13 +2,24 @@
 #include "periph/usb.h"
 #include "Core/Inc/tim.h"
 
-#if defined(STM32F405xx)
+using namespace Project;
 
-extern "C" USBD_HandleTypeDef hUsbDeviceFS;
-extern "C" TIM_HandleTypeDef        htim14;
 
-#define BOOT_ADDR	0x1FFF0000	// stm32f405 system memory base addres, check on Ref Manual, Table 5. Flash module organization (STM32F40x and STM32F41x)
-#define	MCU_IRQS	82u	// no. of NVIC IRQ inputs, check NVIC Feature on Ref Manual
+// bootloader for DFU
+#if defined(STM32F3)
+#define BOOT_ADDR	0x1FFFD800
+#endif
+
+#if defined(STM32F4) || defined(STM32F2)
+#define BOOT_ADDR	0x1FFF0000
+#endif
+
+#if defined(STM32F7)
+#define BOOT_ADDR	0x1FF00000
+#endif
+
+
+#ifdef BOOT_ADDR
 
 struct boot_vectable_ {
     uint32_t Initial_SP;
@@ -17,44 +28,54 @@ struct boot_vectable_ {
 
 #define BOOTVTAB	((struct boot_vectable_ *)BOOT_ADDR)
 
-using namespace Project;
-
+#ifdef HAL_PCD_MODULE_ENABLED
+extern "C" USBD_HandleTypeDef hUsbDeviceFS;
+#endif
 
 void periph::jumpToBootLoader() {
-    //stop USB 
+    // stop USB 
+	#ifdef HAL_PCD_MODULE_ENABLED
 	USBD_Stop(&hUsbDeviceFS);
 	USBD_DeInit(&hUsbDeviceFS);
+	#endif
 
-    //remap memory 
+    // remap memory ?
 	SYSCFG->MEMRMP = 0x01;
 
-	/* Disable all interrupts */
+	// disable interrupts
 	__disable_irq();
 
-	/* Disable Systick timer (timebase) */
-	HAL_TIM_Base_Stop(&htim14);
-	__HAL_TIM_DISABLE_IT(&htim14, TIM_IT_UPDATE);
-	__HAL_RCC_TIM12_CLK_DISABLE();
+	// disable systick tim base
+	#ifdef PERIPH_SYSTICK_TIM_BASE_SOURCE
+	if (PERIPH_SYSTICK_TIM_BASE_SOURCE->CCER & (TIM_CCER_CCxE_MASK | TIM_CCER_CCxNE_MASK) == 0UL)
+		PERIPH_SYSTICK_TIM_BASE_SOURCE->CR1 &= ~(TIM_CR1_CEN); 
+	
+	PERIPH_SYSTICK_TIM_BASE_SOURCE->DIER &= ~TIM_IT_UPDATE;
+	#endif
 
 	SysTick->CTRL = 0;
 
-	/* Set the clock to the default state */
+	// deinit clock
 	HAL_RCC_DeInit();
 
-	/* Clear Interrupt Enable Register & Interrupt Pending Register */
+	// clear interrupt enable register and pending register
     for (uint16_t i = 0; i < sizeof(NVIC->ICER) / sizeof(NVIC->ICER[0]); i++) {
 		NVIC->ICER[i] = 0xFFFFFFFF;
 		NVIC->ICPR[i] = 0xFFFFFFFF;
     }
 
-	/* Re-enable all interrupts */
+	// reenable interrupt (?)
 	__enable_irq();
 
-	// Set the MSP
+	// set the stack pointer
 	__set_MSP(BOOTVTAB->Initial_SP);
 
-	// Jump to app firmware
+	// jump to bootloader
 	BOOTVTAB->Reset_Handler();
 }    
+
+#else
+
+void periph::jumpToBootLoader() {}
 
 #endif
