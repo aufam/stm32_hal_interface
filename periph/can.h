@@ -54,7 +54,7 @@ namespace Project::periph {
             Instances.push(this);
         }
 
-        struct InitArgs { uint32_t idType, idTx, filter, mask; };
+        struct InitArgs { uint32_t idType, idTx, filter, mask; Callback rxCallback = {}; };
 
         /// start CAN and activate notification at RX FIFO message pending
         /// @param args
@@ -67,6 +67,7 @@ namespace Project::periph {
             idTx = args.idTx;
             filter = args.filter;
             mask = args.filter;
+            rxCallbackList.push(args.rxCallback);
             init();
         }
 
@@ -76,6 +77,11 @@ namespace Project::periph {
                 HAL_CAN_Stop(&hcan); 
                 Instances.pop(this);
             }
+        }
+        struct DeinitArgs { Callback rxCallback; };
+        void deinit(DeinitArgs args) { 
+            rxCallbackList.pop(args.rxCallback);
+            deinit();
         }
 
         /// get and set id type, CAN_ID_STD or CAN_ID_EXT

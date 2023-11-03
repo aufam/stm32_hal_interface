@@ -35,12 +35,24 @@ namespace Project::periph {
             Instances.push(this);
         }
 
+        struct InitArgs { Callback callback; };
+        void init(InitArgs args) {
+            callbackList.push(args.callback);
+            init();
+        }
+
         /// stop ADC DMA circular and reset callback
         void deinit() { 
             if (callbackList.isEmpty()) {
                 HAL_ADC_Stop_DMA(&hadc); 
                 Instances.pop(this);
             }
+        }
+
+        struct DeinitArgs { Callback callback; };
+        void deinit(DeinitArgs args) {
+            callbackList.pop(args.callback);
+            deinit();
         }
 
         /// get ADC raw value given the index

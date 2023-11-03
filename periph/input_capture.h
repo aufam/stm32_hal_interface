@@ -38,9 +38,17 @@ namespace Project::periph {
             #endif
             Instances.push(this);
         }
+        
+        struct InitArgs { Callback callback; bool enableNow = false; };
+        void init(InitArgs args) {
+            if (args.callback) callback = args.callback;
+            init();
+            if (args.enableNow) enable();
+        }
 
         /// stop input capture and unregister this instance
         void deinit() { 
+            callback = Callback();
             #ifdef PERIPH_INPUT_CAPTURE_USE_IT
             HAL_TIM_IC_Stop_IT(&htim, channel); 
             #endif 

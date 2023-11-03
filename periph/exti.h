@@ -26,10 +26,21 @@ namespace Project::periph {
         Exti& operator=(const Exti&) = delete;  ///< disable copy assignment
 
         // register this instance
-        void init() { Instances.push(this); }
+        void init() { 
+            Instances.push(this); 
+        }
+
+        struct InitArgs { Callback callback; };
+        void init(InitArgs args) { 
+            if (args.callback) callback = args.callback;
+            init();
+        }
 
         // unregister this instance
-        void deinit() { Instances.pop(this); }
+        void deinit() { 
+            callback = Callback();
+            Instances.pop(this);
+        }
     };
 
 } // namespace Project

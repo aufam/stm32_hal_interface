@@ -27,34 +27,39 @@ namespace Project::periph {
         uint32_t channel;               ///< TIM_CHANNEL_x
         bool hasInverseChannel = false;
         bool useOutputCompare = false;
-        Callback halfCallback = {};
         Callback fullCallback = {};
+        Callback halfCallback = {};
 
         PWM(const PWM&) = delete;               ///< disable copy constructor
         PWM& operator=(const PWM&) = delete;    ///< disable copy assignment
 
         /// register this instance
-        PWM& init() {
+        void init() {
             Instances.push(this);
-            return *this;
         }
 
-        struct InitArgs { uint32_t prescaler, period, pulse; };
+        struct InitArgs { uint32_t prescaler, period, pulse; Callback fullCallback = {}, halfCallback = {}; bool startNow = false; };
 
         /// setup prescaler, period, and pulse, and register this instance
         /// @param args
         ///     - .prescaler set TIMx->PSC
         ///     - .period set TIMx->ARR
         ///     - .pulse set TIMx->CCRchannel
+        ///     - .pulse set TIMx->CCRchannel
         void init(InitArgs args) {
             prescaler = args.prescaler;
             period = args.period;
             pulse = args.pulse;
+            if (args.fullCallback) fullCallback = args.fullCallback;
+            if (args.halfCallback) halfCallback = args.halfCallback;
             init();
+            if (args.startNow) start();
         }
 
         /// stop pwm and unregister this instance
         void deinit() { 
+            fullCallback = Callback();
+            halfCallback = Callback();
             stop(); 
             Instances.pop(this);
         }
@@ -132,28 +137,24 @@ namespace Project::periph {
 
         /// TIMx->CCR
         const GetterSetter<uint32_t> pulse = {
-            { 
-                +[] (const PWM* self) { 
-                    switch (self->channel) {
-                        case TIM_CHANNEL_1: return self->htim.Instance->CCR1;
-                        case TIM_CHANNEL_2: return self->htim.Instance->CCR2;
-                        case TIM_CHANNEL_3: return self->htim.Instance->CCR3;
-                        case TIM_CHANNEL_4: return self->htim.Instance->CCR4;
-                        default: return 0ul;
-                    }
-                }, this
-            },
-            { 
-                +[] (const PWM* self, uint32_t value) { 
-                    switch (self->channel) {
-                        case TIM_CHANNEL_1: self->htim.Instance->CCR1 = value; break;
-                        case TIM_CHANNEL_2: self->htim.Instance->CCR2 = value; break;
-                        case TIM_CHANNEL_3: self->htim.Instance->CCR3 = value; break;
-                        case TIM_CHANNEL_4: self->htim.Instance->CCR4 = value; break;
-                        default: break;
-                    }
-                }, this
-            }
+            { +[] (const PWM* self) { 
+                switch (self->channel) {
+                    case TIM_CHANNEL_1: return self->htim.Instance->CCR1;
+                    case TIM_CHANNEL_2: return self->htim.Instance->CCR2;
+                    case TIM_CHANNEL_3: return self->htim.Instance->CCR3;
+                    case TIM_CHANNEL_4: return self->htim.Instance->CCR4;
+                    default: return 0ul;
+                }
+            }, this },
+            { +[] (const PWM* self, uint32_t value) { 
+                switch (self->channel) {
+                    case TIM_CHANNEL_1: self->htim.Instance->CCR1 = value; break;
+                    case TIM_CHANNEL_2: self->htim.Instance->CCR2 = value; break;
+                    case TIM_CHANNEL_3: self->htim.Instance->CCR3 = value; break;
+                    case TIM_CHANNEL_4: self->htim.Instance->CCR4 = value; break;
+                    default: break;
+                }
+            }, this }
         };
     };
 }

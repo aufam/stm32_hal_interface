@@ -46,6 +46,15 @@ namespace Project::periph {
             Instances.push(this);
         }
 
+        struct InitArgs { uint32_t baudrate; RxCallback rxCallback = {}; TxCallback txCallback = {}; };
+
+        void init(InitArgs args) {
+            baudrate = args.baudrate;
+            rxCallbackList.push(args.rxCallback);
+            txCallbackList.push(args.txCallback);
+            init();
+        }
+
         /// disable receive
         void deinit() { 
             if (rxCallbackList.isEmpty() && txCallbackList.isEmpty()) {
@@ -57,6 +66,14 @@ namespace Project::periph {
                 #endif
                 Instances.pop(this);
             }
+        }
+
+        struct DeinitArgs { RxCallback rxCallback = {}; TxCallback txCallback = {}; };
+
+        void deinit(DeinitArgs args) {
+            rxCallbackList.pop(args.rxCallback); 
+            txCallbackList.pop(args.txCallback); 
+            deinit();
         }
 
         struct TransmitBlockingTimeoutArgs { etl::Time timeout; };
