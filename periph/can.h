@@ -7,6 +7,7 @@
 #include "periph/config.h"
 #include "Core/Inc/can.h"
 #include "etl/function.h"
+#include "etl/getter_setter.h"
 #include "etl/linked_list.h"
 
 namespace Project::periph {
@@ -17,8 +18,12 @@ namespace Project::periph {
         struct Message : CAN_RxHeaderTypeDef { uint8_t data[8]; };
         using Callback = etl::Function<void(Message &), void*>;
         using CallbackList = detail::UniqueInstances<Callback, PERIPH_CALLBACK_LIST_MAX_SIZE>;
-        static detail::UniqueInstances<CAN*, 3> Instances;
 
+        template <typename T>
+        using GetterSetter = etl::GetterSetter<T, etl::Function<T(), const CAN*>, etl::Function<void(T), CAN*>>;
+
+        static detail::UniqueInstances<CAN*, 3> Instances;
+        
         enum {
             #ifdef PERIPH_CAN_USE_FIFO0
             RX_FIFO = CAN_RX_FIFO0,
@@ -32,8 +37,6 @@ namespace Project::periph {
             #endif
         };
 
-        enum { ID_TYPE_STD, ID_TYPE_EXT };
-
         CAN_HandleTypeDef &hcan;            ///< CAN handler configured by CubeMX
         CAN_FilterTypeDef canFilter = {}; 
         CAN_TxHeaderTypeDef txHeader = {};
@@ -43,19 +46,28 @@ namespace Project::periph {
         CAN(const CAN&) = delete;               ///< disable copy constructor
         CAN& operator=(const CAN&) = delete;    ///< disable copy assignment
 
-        struct InitArgs { bool idType; };
-
-        /// start CAN and activate notification at RX FIFO message pending
-        /// @param args
-        ///     - .idType ID_TYPE_STD or ID_TYPE_EXT
-        void init(InitArgs args = {.idType=ID_TYPE_STD}) {
+        void init() {
             txHeader.RTR = CAN_RTR_DATA;
             txHeader.TransmitGlobalTime = DISABLE;
-            setIdType(args.idType);
-            setFilter();
             HAL_CAN_Start(&hcan);
             HAL_CAN_ActivateNotification(&hcan, IT_RX_FIFO);
             Instances.push(this);
+        }
+
+        struct InitArgs { uint32_t idType, idTx, filter, mask; };
+
+        /// start CAN and activate notification at RX FIFO message pending
+        /// @param args
+        ///     - .idType CAN_ID_STD or CAN_ID_EXT
+        ///     - .idTx
+        ///     - .filter
+        ///     - .mask
+        void init(InitArgs args) {
+            idType = args.idType;
+            idTx = args.idTx;
+            filter = args.filter;
+            mask = args.filter;
+            init();
         }
 
         /// stop CAN 
@@ -66,52 +78,73 @@ namespace Project::periph {
             }
         }
 
-        /// set filter by hardware
-        /// @param filter default = 0
-        /// @param mask default = 0
+        /// get and set id type, CAN_ID_STD or CAN_ID_EXT
+        const GetterSetter<uint32_t> idType = {
+            {+[] (const CAN* self) { return self->txHeader.IDE; }, this},
+            {+[] (CAN* self, uint32_t value) { self->txHeader.IDE = value == CAN_ID_STD ? CAN_ID_STD : CAN_ID_EXT; }, this}
+        };
+
+        /// get and set id transmit
+        const GetterSetter<uint32_t> idTx = {
+            {+[] (const CAN* self) { return self->idType == CAN_ID_STD ? self->txHeader.StdId : self->txHeader.ExtId; }, this},
+            {+[] (CAN* self, uint32_t value) { if (self->idType == CAN_ID_STD) self->txHeader.StdId = value; else self->txHeader.ExtId = value; }, this}
+        };
+
+        /// get and set filter register
         /// @example filter = 0b1100, mask = 0b1111 -> allowed rx id: only 0b1100
         /// @example filter = 0b1100, mask = 0b1110 -> allowed rx id: 0b1100 and 0b1101
-        void setFilter(uint32_t filter = 0, uint32_t mask = 0) {
-            canFilter.FilterActivation = CAN_FILTER_ENABLE;
+        const GetterSetter<uint32_t> filter = {
+            {+[] (const CAN* self) { 
+                if (self->idType == CAN_ID_STD) {
+                    // 11 bits, left padding, high half-word
+                    return (self->canFilter.FilterIdHigh & 0xFFFFu) >> (16 - 11);
+                } else {
+                    // 18 bits, 3 bits offset, low half-word
+                    return ((self->canFilter.FilterIdLow & 0xFFFFu) >> (16 - 13)) |   // 13 bits from low half-word
+                           ((self->canFilter.FilterIdHigh & 0b11111u) << 13);         // 5 bits from high half-word
+                }
+            }, this},
+            {+[] (CAN* self, uint32_t value) { 
+                if (self->idType == CAN_ID_STD) {
+                    // 11 bits, left padding, high half-word
+                    self->canFilter.FilterIdLow      = 0;
+                    self->canFilter.FilterIdHigh     = (value << (16 - 11)) & 0xFFFFu;
+                } else {
+                    // 18 bits, 3 bits offset, low half-word
+                    self->canFilter.FilterIdLow      = (value << (16 - 13)) & 0xFFFFu;  // 13 bits to low half-word
+                    self->canFilter.FilterIdHigh     = (value >> 13) & 0b11111u;        // 5 bits to high half-word
+                }
+                self->configureFilter();
+            }, this}
+        };
 
-            if (isUsingExtId()) {
-                // 18 bits, 3 bits offset, low half-word
-                canFilter.FilterMaskIdLow  = (mask << 3) & 0xFFFFu;
-                canFilter.FilterMaskIdHigh = (mask >> (18 - 5)) & 0b11111u;
-                canFilter.FilterIdLow      = (filter << 3) & 0xFFFFu;
-                canFilter.FilterIdHigh     = (filter >> (18 - 5)) & 0b11111u;
-            } else {
-                // 11 bits, left padding, high half-word
-                canFilter.FilterMaskIdLow  = 0;
-                canFilter.FilterMaskIdHigh = (mask << 5) & 0xFFFFu;
-                canFilter.FilterIdLow      = 0;
-                canFilter.FilterIdHigh     = (filter << 5) & 0xFFFFu;
-            }
-
-            canFilter.FilterFIFOAssignment = FILTER_FIFO;
-            canFilter.FilterMode = CAN_FILTERMODE_IDMASK;
-            canFilter.FilterScale = CAN_FILTERSCALE_32BIT;
-            canFilter.FilterBank = 10;
-            canFilter.SlaveStartFilterBank = 0;
-
-            HAL_CAN_ConfigFilter(&hcan, &canFilter);
-        }
-
-        /// set tx ID type, standard or extended
-        /// @param idType ID_TYPE_STD or ID_TYPE_EXT
-        void setIdType(bool idType) {
-            txHeader.IDE = idType ? CAN_ID_EXT : CAN_ID_STD;
-        }
-
-        /// set tx ID
-        void setId(uint32_t txId) {
-            if (isUsingExtId()) txHeader.ExtId = txId;
-            else txHeader.StdId = txId;
-        }
-
-        [[nodiscard]] bool isUsingExtId() const {
-            return txHeader.IDE == CAN_ID_EXT;
-        }
+        /// get and set mask register
+        /// @example filter = 0b1100, mask = 0b1111 -> allowed rx id: only 0b1100
+        /// @example filter = 0b1100, mask = 0b1110 -> allowed rx id: 0b1100 and 0b1101
+        const GetterSetter<uint32_t> mask = {
+            {+[] (const CAN* self) { 
+                if (self->idType == CAN_ID_STD) {
+                    // 11 bits, left padding, high half-word
+                    return (self->canFilter.FilterMaskIdHigh & 0xFFFFu) >> (16 - 11);
+                } else {
+                    // 18 bits, 3 bits offset, low half-word
+                    return ((self->canFilter.FilterMaskIdLow & 0xFFFFu) >> 3) |           // 13 bits from low half-word
+                           ((self->canFilter.FilterMaskIdHigh & 0b11111u) << 13);         // 5 bits from high half-word
+                }
+            }, this},
+            {+[] (CAN* self, uint32_t value) { 
+                if (self->idType == CAN_ID_STD) {
+                    // 11 bits, left padding, high half-word
+                    self->canFilter.FilterMaskIdLow      = 0;
+                    self->canFilter.FilterMaskIdHigh     = (value << (16 - 11)) & 0xFFFFu;
+                } else {
+                    // 18 bits, 3 bits offset, low half-word
+                    self->canFilter.FilterMaskIdLow      = (value << 3) & 0xFFFFu;          // 13 bits to low half-word
+                    self->canFilter.FilterMaskIdHigh     = (value >> 13) & 0b11111u;        // 5 bits to high half-word
+                }
+                self->configureFilter();
+            }, this}
+        };
 
         /// CAN transmit non blocking
         /// @param buf pointer to data buffer
@@ -134,32 +167,43 @@ namespace Project::periph {
             return transmit(args.buf, args.len);
         }
 
-        struct TransmitTxIdArgs { uint32_t txId; const uint8_t* buf; uint16_t len = 8; };
+        struct TransmitIdTxArgs { uint32_t idTx; const uint8_t* buf; uint16_t len = 8; };
 
         /// CAN transmit non blocking with specific tx ID
         /// @param args
-        ///     - .txId destination id
+        ///     - .idTx destination id
         ///     - .buf pointer to data buffer
         ///     - .len buffer length, maximum 8 bytes, default 8
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
-        int transmit(TransmitTxIdArgs args) {
-            setId(args.txId);
+        int transmit(TransmitIdTxArgs args) {
+            idTx = args.idTx;
             return transmit(args.buf, args.len);
         }
 
-        struct TransmitIdTypeTxIdArgs { bool idType; uint32_t txId; const uint8_t* buf; uint16_t len = 8; };
+        struct TransmitIdTypeIdTxArgs { uint32_t idType; uint32_t idTx; const uint8_t* buf; uint16_t len = 8; };
 
         /// CAN transmit non blocking with specific tx ID and set ID type
         /// @param args
         ///     - .idType ID_TYPE_STD or ID_TYPE_EXT
-        ///     - .txId destination id
+        ///     - .idTx destination id
         ///     - .buf pointer to data buffer
         ///     - .len buffer length, maximum 8 bytes, default 8
         /// @retval HAL_StatusTypeDef. see stm32fXxx_hal_def.h
-        int transmit(TransmitIdTypeTxIdArgs args) {
-            setIdType(args.idType);
-            setId(args.txId);
+        int transmit(TransmitIdTypeIdTxArgs args) {
+            idType = args.idType;
+            idTx = args.idTx;
             return transmit(args.buf, args.len);
+        }
+
+    private:
+        void configureFilter() {
+            canFilter.FilterActivation = CAN_FILTER_ENABLE;
+            canFilter.FilterFIFOAssignment = FILTER_FIFO;
+            canFilter.FilterMode = CAN_FILTERMODE_IDMASK;
+            canFilter.FilterScale = CAN_FILTERSCALE_32BIT;
+            canFilter.FilterBank = 10;
+            canFilter.SlaveStartFilterBank = 0;
+            HAL_CAN_ConfigFilter(&hcan, &canFilter);
         }
     };
 } // namespace Project

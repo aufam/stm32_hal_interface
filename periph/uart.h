@@ -8,6 +8,7 @@
 #include "Core/Inc/usart.h"
 #include "etl/array.h"
 #include "etl/function.h"
+#include "etl/getter_setter.h"
 #include "etl/string.h"
 #include "etl/time.h"
 
@@ -19,6 +20,10 @@ namespace Project::periph {
         using RxCallback = etl::Function<void(const uint8_t*, size_t), void*>;  ///< rx callback function class
         using TxCallback = etl::Function<void(), void*>;                        ///< tx callback function class
         using Buffer = etl::Array<uint8_t, PERIPH_UART_RX_BUFFER_SIZE>;         ///< UART rx buffer class
+
+        template <typename T>
+        using GetterSetter = etl::GetterSetter<T, etl::Function<T(), const UART*>, etl::Function<void(T), const UART*>>;
+        
         static detail::UniqueInstances<UART*, 16> Instances;
 
         UART_HandleTypeDef &huart;                              ///< UART handler configured by cubeMX
@@ -81,15 +86,11 @@ namespace Project::periph {
             #endif
         }
 
-        /// set UART baud rate
-        /// @param baud desired baud rate
-        /// @retval HAL_StatusTypeDef (see stm32fXxx_hal_def.h)
-        int setBaudRate(uint32_t baud) { huart.Init.BaudRate = baud; return HAL_UART_Init(&huart); }
-
-        /// get UART baud rate
-        /// @retval baud rate
-        [[nodiscard]] 
-        uint32_t getBaudRate() const { return huart.Init.BaudRate; }
+        /// get and set baudrate
+        const GetterSetter<uint32_t> baudrate = {
+            {+[] (const UART* self) { return self->huart.Init.BaudRate; }, this},
+            {+[] (const UART* self, uint32_t value) { self->huart.Init.BaudRate = value; HAL_UART_Init(&self->huart); }, this}
+        };
 
         /// write blocking operator for etl::string
         template <size_t N>

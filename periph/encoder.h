@@ -25,12 +25,16 @@ namespace Project::periph {
         Encoder& operator=(const Encoder&) = delete;  ///< disable copy assignment
 
         /// start encoder and register this instance
-        void init() { 
+        void init(
+            #ifdef PERIPH_ENCODER_USE_DMA
+            uint32_t* dmaBufferA, uint32_t* dmaBufferB, uint16_t len
+            #endif
+        ) { 
             #ifdef PERIPH_ENCODER_USE_IT
             HAL_TIM_Encoder_Start_IT(&htim, TIM_CHANNEL_ALL); 
             #endif
             #ifdef PERIPH_ENCODER_USE_DMA
-            HAL_TIM_Encoder_Start_DMA(&htim, TIM_CHANNEL_ALL); 
+            HAL_TIM_Encoder_Start_DMA(&htim, TIM_CHANNEL_ALL, dmaBufferA, dmaBufferB, len); 
             #endif
             Instances.push(this);
         }

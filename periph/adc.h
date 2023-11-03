@@ -44,10 +44,10 @@ namespace Project::periph {
         }
 
         /// get ADC raw value given the index
-        uint32_t operator[](int index) { return buf[index]; }
+        uint32_t operator[](int index) const { return buf[index]; }
 
         /// get ADC voltage value given the index
-        float operator()(int index) { return float(buf[index]) * float(PERIPH_ADC_VREF) / float(1 << PERIPH_ADC_RESOLUTION_BITS); }
+        float operator()(int index) const { return float(buf[index]) * float(PERIPH_ADC_VREF) / float(1 << PERIPH_ADC_RESOLUTION_BITS); }
     };
 } // namespace Project
 
