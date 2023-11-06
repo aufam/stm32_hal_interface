@@ -17,20 +17,14 @@ namespace Project::periph {
         inline static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
         inline static const auto minimumUpdateInterval = etl::time::milliseconds(500);
         inline static auto lastUpdate = etl::Time(0);
-    
-        template <typename T>
-        using GetterSetter = etl::GetterSetter<T, etl::Function<T(), RealTimeClock*>, etl::Function<void(T), RealTimeClock*>>;
 
         template <typename T>
         using Getter = etl::Getter<T, etl::Function<T(), RealTimeClock*>>;
 
-        template <typename T>
-        using Setter = etl::Setter<T, etl::Function<void(T), RealTimeClock*>>;
-
-    public:
         RTC_TimeTypeDef sTime = {};
         RTC_DateTypeDef sDate = {};
 
+    public:
         /// default constructor
         constexpr RealTimeClock() = default;
 
@@ -48,10 +42,21 @@ namespace Project::periph {
         }
 
         struct DateArgs { int weekDay, date, month, year; };
-        const Setter<DateArgs> date = {etl::bind<&RealTimeClock::setDate>(this)};
+        void setDate(DateArgs args) {
+            sDate.WeekDay = uint8_t(args.weekDay);
+            sDate.Date = uint8_t(args.date);
+            sDate.Month = uint8_t(args.month);
+            sDate.Year = uint8_t(args.year);
+            HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+        }
 
         struct TimeArgs { int hours, minutes, seconds; };
-        const Setter<TimeArgs> time = {etl::bind<&RealTimeClock::setTime>(this)};
+        void setTime(TimeArgs args) {
+            sTime.Hours = args.hours;
+            sTime.Minutes = args.minutes;
+            sTime.Seconds = args.seconds;
+            HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+        }
 
         const Getter<int> seconds   = {etl::bind<&RealTimeClock::getSeconds>(this)};
         const Getter<int> minutes   = {etl::bind<&RealTimeClock::getMinutes>(this)};
@@ -63,21 +68,6 @@ namespace Project::periph {
         const Getter<const char*> day = {etl::bind<&RealTimeClock::getDay>(this)};
 
     private:
-        void setTime(TimeArgs args) {
-            sTime.Hours = args.hours;
-            sTime.Minutes = args.minutes;
-            sTime.Seconds = args.seconds;
-            HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
-        }
-
-        void setDate(DateArgs args) {
-            sDate.WeekDay = uint8_t(args.weekDay);
-            sDate.Date = uint8_t(args.date);
-            sDate.Month = uint8_t(args.month);
-            sDate.Year = uint8_t(args.year);
-            HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
-        }
-
         int getSeconds()  { update(); return sTime.Seconds; }
         int getMinutes()  { update(); return sTime.Minutes; }
         int getHours()    { update(); return sTime.Hours; }
