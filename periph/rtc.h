@@ -5,6 +5,8 @@
 #ifdef HAL_RTC_MODULE_ENABLED
 
 #include "Core/Inc/rtc.h"
+#include "etl/getter_setter.h"
+#include "etl/function.h"
 #include "etl/time.h"
 
 namespace Project::periph {
@@ -16,6 +18,15 @@ namespace Project::periph {
         inline static const auto minimumUpdateInterval = etl::time::milliseconds(500);
         inline static auto lastUpdate = etl::Time(0);
     
+        template <typename T>
+        using GetterSetter = etl::GetterSetter<T, etl::Function<T(), RealTimeClock*>, etl::Function<void(T), RealTimeClock*>>;
+
+        template <typename T>
+        using Getter = etl::Getter<T, etl::Function<T(), RealTimeClock*>>;
+
+        template <typename T>
+        using Setter = etl::Setter<T, etl::Function<void(T), RealTimeClock*>>;
+
     public:
         RTC_TimeTypeDef sTime = {};
         RTC_DateTypeDef sDate = {};
@@ -36,31 +47,46 @@ namespace Project::periph {
             lastUpdate = now;
         }
 
-        struct SetDateArgs { uint8_t week_day, date, month, year; };
-        int setDate(SetDateArgs args) {
-            sDate.WeekDay = args.week_day;
-            sDate.Date = args.date;
-            sDate.Month = args.month;
-            sDate.Year = args.year;
-            return HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
+        struct DateArgs { int weekDay, date, month, year; };
+        const Setter<DateArgs> date = {etl::bind<&RealTimeClock::setDate>(this)};
+
+        struct TimeArgs { int hours, minutes, seconds; };
+        const Setter<TimeArgs> time = {etl::bind<&RealTimeClock::setTime>(this)};
+
+        const Getter<int> seconds   = {etl::bind<&RealTimeClock::getSeconds>(this)};
+        const Getter<int> minutes   = {etl::bind<&RealTimeClock::getMinutes>(this)};
+        const Getter<int> hours     = {etl::bind<&RealTimeClock::getHours>(this)};
+        const Getter<int> weekDay   = {etl::bind<&RealTimeClock::getWeekDay>(this)};
+        const Getter<int> date      = {etl::bind<&RealTimeClock::getDate>(this)};
+        const Getter<int> month     = {etl::bind<&RealTimeClock::getMonth>(this)};
+        const Getter<int> year      = {etl::bind<&RealTimeClock::getYear>(this)};
+        const Getter<const char*> day = {etl::bind<&RealTimeClock::getDay>(this)};
+
+    private:
+        void setTime(TimeArgs args) {
+            sTime.Hours = args.hours;
+            sTime.Minutes = args.minutes;
+            sTime.Seconds = args.seconds;
+            HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
         }
 
-        struct SetTimeArgs { uint8_t hrs, mins, secs; };
-        int setTime(SetTimeArgs args) {
-            sTime.Hours = args.hrs;
-            sTime.Minutes = args.mins;
-            sTime.Seconds = args.secs;
-            return HAL_RTC_SetTime(&hrtc, &sTime, RTC_FORMAT_BIN);
+        void setDate(DateArgs args) {
+            sDate.WeekDay = uint8_t(args.weekDay);
+            sDate.Date = uint8_t(args.date);
+            sDate.Month = uint8_t(args.month);
+            sDate.Year = uint8_t(args.year);
+            HAL_RTC_SetDate(&hrtc, &sDate, RTC_FORMAT_BIN);
         }
 
-        auto getSeconds()  { update(); return sTime.Seconds; }
-        auto getMinutes()  { update(); return sTime.Minutes; }
-        auto getHours()    { update(); return sTime.Hours; }
-        auto getDay()      { update(); return days[sDate.WeekDay]; }
-        auto getWeekDay()  { update(); return sDate.WeekDay; }
-        auto getDate()     { update(); return sDate.Date; }
-        auto getMonth()    { update(); return sDate.Month; }
-        auto getYear()     { update(); return sDate.Year; }
+        int getSeconds()  { update(); return sTime.Seconds; }
+        int getMinutes()  { update(); return sTime.Minutes; }
+        int getHours()    { update(); return sTime.Hours; }
+        int getWeekDay()  { update(); return sDate.WeekDay; }
+        int getDate()     { update(); return sDate.Date; }
+        int getMonth()    { update(); return sDate.Month; }
+        int getYear()     { update(); return sDate.Year; }
+
+        const char* getDay() { update(); return days[sDate.WeekDay]; }
     };
 
     inline RealTimeClock rtc;
