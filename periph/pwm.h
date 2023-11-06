@@ -137,25 +137,30 @@ namespace Project::periph {
 
         /// TIMx->CCR
         const GetterSetter<uint32_t> pulse = {
-            { +[] (const PWM* self) { 
-                switch (self->channel) {
-                    case TIM_CHANNEL_1: return self->htim.Instance->CCR1;
-                    case TIM_CHANNEL_2: return self->htim.Instance->CCR2;
-                    case TIM_CHANNEL_3: return self->htim.Instance->CCR3;
-                    case TIM_CHANNEL_4: return self->htim.Instance->CCR4;
-                    default: return 0ul;
-                }
-            }, this },
-            { +[] (const PWM* self, uint32_t value) { 
-                switch (self->channel) {
-                    case TIM_CHANNEL_1: self->htim.Instance->CCR1 = value; break;
-                    case TIM_CHANNEL_2: self->htim.Instance->CCR2 = value; break;
-                    case TIM_CHANNEL_3: self->htim.Instance->CCR3 = value; break;
-                    case TIM_CHANNEL_4: self->htim.Instance->CCR4 = value; break;
-                    default: break;
-                }
-            }, this }
+            etl::bind<&PWM::getPulse>(this),
+            etl::bind<&PWM::setPulse>(this),
         };
+    
+    private:
+        uint32_t getPulse() const {
+            switch (channel) {
+                case TIM_CHANNEL_1: return htim.Instance->CCR1;
+                case TIM_CHANNEL_2: return htim.Instance->CCR2;
+                case TIM_CHANNEL_3: return htim.Instance->CCR3;
+                case TIM_CHANNEL_4: return htim.Instance->CCR4;
+                default: return 0ul;
+            }
+        }
+
+        void setPulse(uint32_t value) const {
+            switch (channel) {
+                case TIM_CHANNEL_1: htim.Instance->CCR1 = value; break;
+                case TIM_CHANNEL_2: htim.Instance->CCR2 = value; break;
+                case TIM_CHANNEL_3: htim.Instance->CCR3 = value; break;
+                case TIM_CHANNEL_4: htim.Instance->CCR4 = value; break;
+                default: break;
+            }
+        }
     };
 }
 
