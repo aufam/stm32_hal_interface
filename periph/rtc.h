@@ -17,20 +17,14 @@ namespace Project::periph {
         inline static const char days[7][4] = { "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat" };
         inline static const auto minimumUpdateInterval = etl::time::milliseconds(500);
         inline static auto lastUpdate = etl::Time(0);
-    
-        template <typename T>
-        using GetterSetter = etl::GetterSetter<T, etl::Function<T(), RealTimeClock*>, etl::Function<void(T), RealTimeClock*>>;
 
         template <typename T>
         using Getter = etl::Getter<T, etl::Function<T(), RealTimeClock*>>;
 
-        template <typename T>
-        using Setter = etl::Setter<T, etl::Function<void(T), RealTimeClock*>>;
-
-    public:
         RTC_TimeTypeDef sTime = {};
         RTC_DateTypeDef sDate = {};
 
+    public:
         /// default constructor
         constexpr RealTimeClock() = default;
 
