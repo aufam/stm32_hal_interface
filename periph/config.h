@@ -79,47 +79,51 @@
 #endif
 
 namespace Project::periph::detail {
-
-    template <typename T, size_t N>
+    template <typename T, unsigned int N> 
     class UniqueInstances {
     public:
         T instances[N] = {};
 
-        void push(T it) {
-            if (find(it)) {
-                return;
-            }
-
-            T empty = {};
-            T* ptr = find(empty);
-            if (ptr) {
-                *ptr = it;
-            }
-        }
-
-        void pop(T it) {
-            T empty = {};
-            for (T* ptr = find(it); ptr != nullptr; ptr = find(it)) {
-                *ptr = empty;
-            }
-        }
-
-        bool isEmpty() {
-            T empty = {};
-            for (auto& instance : instances) if (instance != empty) {
-                return false;
-            }
-            return true;
-        }
-
-        T* find(T it) {
-            for (auto& instance : instances) if (instance == it) {
-                return &instance;
-            }
-            return nullptr;
-        }
+        void push(T it);
+        void pop(T it);
+        bool isEmpty();
+        T* find(T it);
     };
 }
 
+template <typename T, unsigned int N>
+void Project::periph::detail::UniqueInstances<T, N>::push(T it) {
+    if (find(it))
+        return;
+
+    T empty = {};
+    T* ptr = find(empty);
+    if (ptr)
+        *ptr = it;
+}
+
+template <typename T, unsigned int N>
+void Project::periph::detail::UniqueInstances<T, N>::pop(T it) {
+    T empty = {};
+    for (T* ptr = find(it); ptr != nullptr; ptr = find(it))
+        *ptr = empty;
+}
+
+template <typename T, unsigned int N>
+T* Project::periph::detail::UniqueInstances<T, N>::find(T it) {
+        for (auto& instance : instances) if (instance == it) {
+            return &instance;
+        }
+        return nullptr;
+    }
+
+template <typename T, unsigned int N>
+bool Project::periph::detail::UniqueInstances<T, N>::isEmpty() {
+    T empty = {};
+    for (auto& instance : instances) if (instance != empty)
+        return false;
+    
+    return true;
+}
 
 #endif // PERIPH_CONFIG_H
