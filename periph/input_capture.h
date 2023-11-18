@@ -87,7 +87,11 @@ struct Project::periph::InputCapture {
                 case TIM_CHANNEL_1: return self->htim.Instance->CCER & (TIM_CCER_CC1P | TIM_CCER_CC1NP);
                 case TIM_CHANNEL_2: return self->htim.Instance->CCER & (TIM_CCER_CC2P | TIM_CCER_CC2NP);
                 case TIM_CHANNEL_3: return self->htim.Instance->CCER & (TIM_CCER_CC3P | TIM_CCER_CC3NP);
-                case TIM_CHANNEL_4: return self->htim.Instance->CCER & (TIM_CCER_CC4P | TIM_CCER_CC4NP);
+                case TIM_CHANNEL_4: return self->htim.Instance->CCER & (TIM_CCER_CC4P 
+                #if defined(TIM_CCER_CC4NP)
+                | TIM_CCER_CC4NP
+                #endif
+                );
                 default: return 0;
             }
         }, this},
