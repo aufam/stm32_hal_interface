@@ -41,8 +41,8 @@ struct Project::periph::UART {
         #endif
         #ifdef PERIPH_UART_RECEIVE_USE_DMA
         HAL_UARTEx_ReceiveToIdle_DMA(&huart, rxBuffer.data(), rxBuffer.len());
-        #endif
         __HAL_DMA_DISABLE_IT(huart.hdmarx, DMA_IT_HT);
+        #endif
         Instances.push(this);
     }
 
