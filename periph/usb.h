@@ -31,6 +31,14 @@ struct Project::periph::USBD {
     /// @retval @ref USBD_StatusTypeDef (see usbd_def.h)
     int transmit(const void *buf, size_t len) { return CDC_Transmit_FS((uint8_t*) buf, len); }
 
+    int transmitBlocking(const void *buf, size_t len) { 
+        while (true) {
+            if (transmit(buf, len) == USBD_OK)
+                break;
+        }; 
+        return USBD_OK;
+    }
+
     /// write operator for etl::string
     template <size_t N>
     USBD& operator<<(const etl::String<N>& str) { 

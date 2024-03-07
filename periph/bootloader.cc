@@ -26,7 +26,7 @@ struct boot_vectable_ {
     void (*Reset_Handler)(void);
 };
 
-#define BOOTVTAB	((struct boot_vectable_ *)BOOT_ADDR)
+#define BOOTVTAB	((volatile struct boot_vectable_ *)BOOT_ADDR)
 
 #ifdef HAL_PCD_MODULE_ENABLED
 extern "C" USBD_HandleTypeDef hUsbDeviceFS;
