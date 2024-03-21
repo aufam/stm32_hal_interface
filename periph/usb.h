@@ -32,11 +32,10 @@ struct Project::periph::USBD {
     int transmit(const void *buf, size_t len) { return CDC_Transmit_FS((uint8_t*) buf, len); }
 
     int transmitBlocking(const void *buf, size_t len) { 
-        while (true) {
-            if (transmit(buf, len) == USBD_OK)
-                break;
-        }; 
-        return USBD_OK;
+        int res = USBD_OK; do {
+            res = transmit(buf, len);
+        } while (res == USBD_BUSY);
+        return res;
     }
 
     /// write operator for etl::string

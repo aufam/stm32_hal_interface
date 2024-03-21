@@ -37,7 +37,7 @@ struct Project::periph::PWM {
         Instances.push(this);
     }
 
-    struct InitArgs { uint32_t prescaler, period, pulse; Callback fullCallback = {}, halfCallback = {}; bool startNow = false; };
+    struct InitArgs { Callback fullCallback = {}, halfCallback = {}; bool startNow = false; };
 
     /// setup prescaler, period, and pulse, and register this instance
     /// @param args
@@ -46,9 +46,6 @@ struct Project::periph::PWM {
     ///     - .pulse set TIMx->CCRchannel
     ///     - .pulse set TIMx->CCRchannel
     void init(InitArgs args) {
-        prescaler = args.prescaler;
-        period = args.period;
-        pulse = args.pulse;
         if (args.fullCallback) fullCallback = args.fullCallback;
         if (args.halfCallback) halfCallback = args.halfCallback;
         init();
@@ -121,18 +118,6 @@ struct Project::periph::PWM {
         }
         #endif
     }
-
-    /// TIMx->PSC
-    const GetterSetter<uint32_t> prescaler = {
-        { +[] (const PWM* self) { return self->htim.Instance->PSC; }, this},
-        { +[] (const PWM* self, uint32_t value) { self->htim.Instance->PSC = value; }, this}
-    };
-
-    /// TIMx->ARR
-    const GetterSetter<uint32_t> period = {
-        { +[] (const PWM* self) { return self->htim.Instance->ARR; }, this},
-        { +[] (const PWM* self, uint32_t value) { self->htim.Instance->ARR = value; }, this}
-    };
 
     /// TIMx->CCR
     const GetterSetter<uint32_t> pulse = {

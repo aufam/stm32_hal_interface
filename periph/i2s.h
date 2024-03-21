@@ -8,6 +8,7 @@
 #include "Core/Inc/i2s.h"
 #include "etl/array.h"
 #include "etl/event.h"
+#include "etl/future.h"
 
 namespace Project::periph { struct I2S; }
 
@@ -18,7 +19,7 @@ namespace Project::periph { struct I2S; }
 ///     - standard I2S Philips
 ///     - 16 bits data on 16 bits frame
 ///     - tx & rx DMA circular 16 bit
-struct I2S {
+struct Project::periph::I2S {
     static detail::UniqueInstances<I2S*, 16> Instances;
 
     typedef int16_t Mono;
@@ -82,35 +83,37 @@ struct I2S {
     ///     - .buffer[out] buffer mono to store the audio data
     ///     - .leftOrRight left (false) or right (true) channel, default left 
     /// @return osStatus
-    osStatus_t read(ReadMonoArgs args) {
-        auto flag = evt.waitFlagsAny({.timeout=eventTimeout});
-        auto buf = rxBuffer.begin();
+    etl::Future<void> read(ReadMonoArgs args) {
+        return [this, args] (etl::Time timeout) mutable -> etl::Result<void, osStatus_t> {
+            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
+            if (err) 
+                return etl::Err(*err);
+            
+            auto buf = rxBuffer.begin();
 
-        if (!flag)
-            return osErrorTimeout;
-        
-        if (flag & FLAG_FULL)
-            buf = rxBuffer.begin() + nSamples;
-        else if (flag & FLAG_HALF)
-            buf = rxBuffer.begin();
-        else 
-            return osErrorResource;
+            if (*flag & FLAG_FULL)
+                buf = rxBuffer.begin() + nSamples;
+            else if (*flag & FLAG_HALF)
+                buf = rxBuffer.begin();
+            else 
+                return etl::Err(osErrorResource);
 
-        #ifdef PERIPH_I2S_CHANNEL_STEREO
-        if (args.leftOrRight)
+            #ifdef PERIPH_I2S_CHANNEL_STEREO
+            if (args.leftOrRight)
+                for (size_t i = 0; i < nSamples; i++)
+                    args.buffer[i] = buf[i].right;
+            else
+                for (size_t i = 0; i < nSamples; i++)
+                    args.buffer[i] = buf[i].left;
+            #endif
+            #ifdef PERIPH_I2S_CHANNEL_MONO
+            UNUSED(args.leftOrRight);
             for (size_t i = 0; i < nSamples; i++)
-                args.buffer[i] = buf[i].right;
-        else
-            for (size_t i = 0; i < nSamples; i++)
-                args.buffer[i] = buf[i].left;
-        #endif
-        #ifdef PERIPH_I2S_CHANNEL_MONO
-        UNUSED(args.leftOrRight);
-        for (size_t i = 0; i < nSamples; i++)
-            args.buffer[i] = buf[i];
-        #endif
+                args.buffer[i] = buf[i];
+            #endif
 
-        return osOK;
+            return etl::Ok();
+        };
     }
 
     struct ReadStereoArgs { BufferStereo& buffer; };
@@ -119,32 +122,34 @@ struct I2S {
     /// @param args 
     ///     - .buffer[out] buffer stereo to store the audio data
     /// @return osStatus
-    osStatus_t read(ReadStereoArgs args) {
-        auto flag = evt.waitFlagsAny({.timeout=eventTimeout});
-        auto buf = rxBuffer.begin();
+    etl::Future<void> read(ReadStereoArgs args) {
+        return [this, args] (etl::Time timeout) mutable -> etl::Result<void, osStatus_t> {
+            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
+            if (err) 
+                return etl::Err(*err);
+            
+            auto buf = rxBuffer.begin();
 
-        if (!flag)
-            return osErrorTimeout;
-        
-        if (flag & FLAG_FULL)
-            buf = rxBuffer.begin() + nSamples;
-        else if (flag & FLAG_HALF)
-            buf = rxBuffer.begin();
-        else 
-            return osErrorResource;
+            if (*flag & FLAG_FULL)
+                buf = rxBuffer.begin() + nSamples;
+            else if (*flag & FLAG_HALF)
+                buf = rxBuffer.begin();
+            else 
+                return etl::Err(osErrorResource);
 
-        #ifdef PERIPH_I2S_CHANNEL_STEREO
-        for (size_t i = 0; i < nSamples; i++)
-            args.buffer[i] = buf[i];
-        #endif
-        #ifdef PERIPH_I2S_CHANNEL_MONO
-        for (size_t i = 0; i < nSamples; i++) {
-            args.buffer[i].left = buf[i];
-            args.buffer[i].right = buf[i];
-        }
-        #endif
+            #ifdef PERIPH_I2S_CHANNEL_STEREO
+            for (size_t i = 0; i < nSamples; i++)
+                args.buffer[i] = buf[i];
+            #endif
+            #ifdef PERIPH_I2S_CHANNEL_MONO
+            for (size_t i = 0; i < nSamples; i++) {
+                args.buffer[i].left = buf[i];
+                args.buffer[i].right = buf[i];
+            }
+            #endif
 
-        return osOK;
+            return etl::Ok();
+        };
     }
 
     struct WriteMonoArgs { const BufferMono& buffer; bool leftOrRight = false; };
@@ -154,35 +159,37 @@ struct I2S {
     ///     - .buffer[in] audio data as buffer mono
     ///     - .leftOrRight left (false) or right (true) channel, default left 
     /// @return osStatus
-    osStatus_t write(WriteMonoArgs args) {
-        auto flag = evt.waitFlagsAny({.timeout=eventTimeout});
-        auto buf = rxBuffer.begin();
+    etl::Future<void> write(WriteMonoArgs args) {
+        return [this, args] (etl::Time timeout) -> etl::Result<void, osStatus_t> {
+            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
+            if (err) 
+                return etl::Err(*err);
+            
+            auto buf = rxBuffer.begin();
 
-        if (!flag)
-            return osErrorTimeout;
-        
-        if (flag & FLAG_FULL)
-            buf = rxBuffer.begin();
-        else if (flag & FLAG_HALF)
-            buf = rxBuffer.begin() + nSamples;
-        else 
-            return osErrorResource;
+            if (*flag & FLAG_FULL)
+                buf = rxBuffer.begin();
+            else if (*flag & FLAG_HALF)
+                buf = rxBuffer.begin() + nSamples;
+            else 
+                return etl::Err(osErrorResource);
 
-        #ifdef PERIPH_I2S_CHANNEL_STEREO
-        if (args.leftOrRight)
+            #ifdef PERIPH_I2S_CHANNEL_STEREO
+            if (args.leftOrRight)
+                for (size_t i = 0; i < nSamples; i++)
+                    buf[i].right = args.buffer[i];
+            else
+                for (size_t i = 0; i < nSamples; i++)
+                    buf[i].left = args.buffer[i];
+            #endif
+            #ifdef PERIPH_I2S_CHANNEL_MONO
+            UNUSED(args.leftOrRight);
             for (size_t i = 0; i < nSamples; i++)
-                buf[i].right = args.buffer[i];
-        else
-            for (size_t i = 0; i < nSamples; i++)
-                buf[i].left = args.buffer[i];
-        #endif
-        #ifdef PERIPH_I2S_CHANNEL_MONO
-        UNUSED(args.leftOrRight);
-        for (size_t i = 0; i < nSamples; i++)
-            buf[i] = args.buffer[i];
-        #endif
+                buf[i] = args.buffer[i];
+            #endif
 
-        return osOK;
+            return etl::Ok();
+        };
     }
 
     struct WriteStereoArgs { const BufferStereo& buffer; };
@@ -192,30 +199,32 @@ struct I2S {
     ///     - .buffer[in] audio data as buffer stereo
     ///     - .leftOrRight left (false) or right (true) channel, default left 
     /// @return osStatus
-    osStatus_t write(WriteStereoArgs args) {
-        auto flag = evt.waitFlagsAny({.timeout=eventTimeout});
-        auto buf = rxBuffer.begin();
+    etl::Future<void> write(WriteStereoArgs args) {
+        return [this, args] (etl::Time timeout) -> etl::Result<void, osStatus_t> {
+            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
+            if (err) 
+                return etl::Err(*err);
+            
+            auto buf = rxBuffer.begin();
 
-        if (!flag)
-            return osErrorTimeout;
-        
-        if (flag & FLAG_FULL)
-            buf = rxBuffer.begin();
-        else if (flag & FLAG_HALF)
-            buf = rxBuffer.begin() + nSamples;
-        else 
-            return osErrorResource;
+            if (*flag & FLAG_FULL)
+                buf = rxBuffer.begin();
+            else if (*flag & FLAG_HALF)
+                buf = rxBuffer.begin() + nSamples;
+            else 
+                return etl::Err(osErrorResource);
 
-        #ifdef PERIPH_I2S_CHANNEL_STEREO
-        for (size_t i = 0; i < nSamples; i++)
-            buf[i] = args.buffer[i];
-        #endif
-        #ifdef PERIPH_I2S_CHANNEL_MONO
-        for (size_t i = 0; i < nSamples; i++)
-            buf[i] = args.buffer[i].left / 2 + args.buffer[i].right / 2;
-        #endif
+            #ifdef PERIPH_I2S_CHANNEL_STEREO
+            for (size_t i = 0; i < nSamples; i++)
+                buf[i] = args.buffer[i];
+            #endif
+            #ifdef PERIPH_I2S_CHANNEL_MONO
+            for (size_t i = 0; i < nSamples; i++)
+                buf[i] = args.buffer[i].left / 2 + args.buffer[i].right / 2;
+            #endif
 
-        return osOK;
+            return etl::Ok();
+        };
     }
 };
 

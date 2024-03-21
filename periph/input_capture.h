@@ -7,7 +7,7 @@
 #include "periph/config.h"
 #include "Core/Inc/tim.h"
 #include "etl/getter_setter.h"
-#include "etl/function.h"
+#include "etl/async.h"
 
 namespace Project::periph { struct InputCapture; }
 
@@ -23,32 +23,29 @@ struct Project::periph::InputCapture {
 
     TIM_HandleTypeDef& htim;        ///< TIM handler configured by cubeMX
     uint32_t channel;               ///< TIM_CHANNEL_x
-    Callback callback = {};         ///< capture callback function
+    etl::Queue<uint32_t, 1> que = {};
 
     InputCapture(const InputCapture&) = delete;             ///< disable copy constructor
     InputCapture& operator=(const InputCapture&) = delete;  ///< disable copy assignment
 
     /// start input capture and register this instance
-    void init() { 
+    void init(
+        #ifdef PERIPH_PWM_USE_DMA
+        uint32_t* dmaBuffer, uint16_t len
+        #endif
+    ) { 
         #ifdef PERIPH_INPUT_CAPTURE_USE_IT
         HAL_TIM_IC_Start_IT(&htim, channel); 
         #endif 
         #ifdef PERIPH_INPUT_CAPTURE_USE_DMA
-        HAL_TIM_IC_Start_DMA(&htim, channel); 
+        HAL_TIM_IC_Start_DMA(&htim, channel, dmaBuffer, len); 
         #endif
+        que.init();
         Instances.push(this);
-    }
-    
-    struct InitArgs { Callback callback; bool enableNow = false; };
-    void init(InitArgs args) {
-        if (args.callback) callback = args.callback;
-        init();
-        if (args.enableNow) enable();
     }
 
     /// stop input capture and unregister this instance
     void deinit() { 
-        callback = Callback();
         #ifdef PERIPH_INPUT_CAPTURE_USE_IT
         HAL_TIM_IC_Stop_IT(&htim, channel); 
         #endif 
@@ -56,28 +53,6 @@ struct Project::periph::InputCapture {
         HAL_TIM_IC_Stop_DMA(&htim, channel); 
         #endif
         Instances.pop(this);
-    }
-
-    /// enable interrupt
-    void enable() const {
-        switch (channel) {
-            case TIM_CHANNEL_1: __HAL_TIM_ENABLE_IT(&htim, TIM_IT_CC1); break;
-            case TIM_CHANNEL_2: __HAL_TIM_ENABLE_IT(&htim, TIM_IT_CC2); break;
-            case TIM_CHANNEL_3: __HAL_TIM_ENABLE_IT(&htim, TIM_IT_CC3); break;
-            case TIM_CHANNEL_4: __HAL_TIM_ENABLE_IT(&htim, TIM_IT_CC4); break;
-            default: break;
-        }
-    }
-
-    /// disable interrupt
-    void disable() const {
-        switch (channel) {
-            case TIM_CHANNEL_1: __HAL_TIM_DISABLE_IT(&htim, TIM_IT_CC1); break;
-            case TIM_CHANNEL_2: __HAL_TIM_DISABLE_IT(&htim, TIM_IT_CC2); break;
-            case TIM_CHANNEL_3: __HAL_TIM_DISABLE_IT(&htim, TIM_IT_CC3); break;
-            case TIM_CHANNEL_4: __HAL_TIM_DISABLE_IT(&htim, TIM_IT_CC4); break;
-            default: break;
-        }
     }
 
     /// get and set polarity, TIM_INPUTCHANNELPOLARITY_XXX
@@ -100,14 +75,12 @@ struct Project::periph::InputCapture {
         }, this}
     };
 
-    /// TIMx->CNT
-    const GetterSetter<uint32_t> counter = {
-        {+[] (const InputCapture* self) { return self->htim.Instance->CNT; }, this},
-        {+[] (const InputCapture* self, uint32_t value) { self->htim.Instance->CNT = value; }, this}
-    };
-
-    /// read captured value TIMx->CCR
-    uint32_t read() const { return HAL_TIM_ReadCapturedValue(&htim, channel); }
+    etl::Future<uint32_t> read() {
+        return [this] (etl::Time timeout) -> etl::Result<uint32_t, osStatus_t> {
+            que.clear();
+            return que.pop().wait(timeout);
+        };
+    }
 };
 
 #endif // HAL_TIM_MODULE_ENABLED
