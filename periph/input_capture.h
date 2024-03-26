@@ -75,11 +75,13 @@ struct Project::periph::InputCapture {
         }, this}
     };
 
-    etl::Future<uint32_t> read() {
-        return [this] (etl::Time timeout) -> etl::Result<uint32_t, osStatus_t> {
-            que.clear();
-            return que.pop().wait(timeout);
-        };
+    etl::Result<uint32_t, osStatus_t> wait(etl::Time timeout) {
+        que.clear();
+        return que.pop().wait(timeout);
+    }
+
+    etl::Result<uint32_t, osStatus_t> await() {
+        return wait(etl::time::infinite);
     }
 };
 
