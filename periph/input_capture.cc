@@ -44,7 +44,7 @@ static Encoder* selectorEncoder(TIM_HandleTypeDef *htim) {
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     auto ic = selector(htim);
     if (ic) {
-        ic->que << HAL_TIM_ReadCapturedValue(&ic->htim, ic->channel);
+        ic->value.set(HAL_TIM_ReadCapturedValue(&ic->htim, ic->channel));
     }
 
     auto enc = selectorEncoder(htim);

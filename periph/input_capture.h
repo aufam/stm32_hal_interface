@@ -7,7 +7,7 @@
 #include "periph/config.h"
 #include "Core/Inc/tim.h"
 #include "etl/getter_setter.h"
-#include "etl/async.h"
+#include "etl/future.h"
 
 namespace Project::periph { struct InputCapture; }
 
@@ -23,7 +23,7 @@ struct Project::periph::InputCapture {
 
     TIM_HandleTypeDef& htim;        ///< TIM handler configured by cubeMX
     uint32_t channel;               ///< TIM_CHANNEL_x
-    etl::Queue<uint32_t, 1> que = {};
+    etl::Promise<uint32_t> value;
 
     InputCapture(const InputCapture&) = delete;             ///< disable copy constructor
     InputCapture& operator=(const InputCapture&) = delete;  ///< disable copy assignment
@@ -40,7 +40,6 @@ struct Project::periph::InputCapture {
         #ifdef PERIPH_INPUT_CAPTURE_USE_DMA
         HAL_TIM_IC_Start_DMA(&htim, channel, dmaBuffer, len); 
         #endif
-        que.init();
         Instances.push(this);
     }
 
@@ -74,15 +73,6 @@ struct Project::periph::InputCapture {
             __HAL_TIM_SET_CAPTUREPOLARITY(&self->htim, self->channel, value); 
         }, this}
     };
-
-    etl::Result<uint32_t, osStatus_t> wait(etl::Time timeout) {
-        que.clear();
-        return que.pop().wait(timeout);
-    }
-
-    etl::Result<uint32_t, osStatus_t> await() {
-        return wait(etl::time::infinite);
-    }
 };
 
 #endif // HAL_TIM_MODULE_ENABLED
