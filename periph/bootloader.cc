@@ -1,6 +1,7 @@
 #include "periph/bootloader.h"
 #include "periph/usb.h"
 #include "Core/Inc/tim.h"
+#include "FreeRTOS.h"
 
 using namespace Project;
 
@@ -38,6 +39,9 @@ void periph::jumpToBootLoader() {
 	USBD_Stop(&hUsbDeviceFS);
 	USBD_DeInit(&hUsbDeviceFS);
 	#endif
+
+	// stop FreeRTOS
+    portDISABLE_INTERRUPTS();
 
     // remap memory ?
 	SYSCFG->MEMRMP = 0x01;

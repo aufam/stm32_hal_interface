@@ -17,6 +17,15 @@ void CDC_TransmitCplt_Callback(const uint8_t *pbuf, uint32_t len) {
     for (auto& callback : usb.txCallbackList.instances) {
         callback(pbuf, len);
     }
+
+    usb.isBusy = false;
+    for (size_t i = 0; i < PERIPH_CALLBACK_LIST_MAX_SIZE; ++i) {
+        if (usb.pending_buffer[i] != nullptr) {
+            usb.transmit(usb.pending_buffer[i], usb.pending_buffer_size[i]);
+            usb.pending_buffer[i] = nullptr;
+            return;
+        }
+    }
 }
 
 #endif

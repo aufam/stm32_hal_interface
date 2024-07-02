@@ -47,7 +47,7 @@ struct Project::periph::I2S {
     I2S_HandleTypeDef &hi2s; ///< I2S handler configured in cubeMX
     DualBuffer txBuffer = {};
     DualBuffer rxBuffer = {};
-    etl::Event evt = {};
+    etl::Promise<int> flag = {};
 
     I2S(const I2S&) = delete;               ///< disable copy constructor
     I2S& operator=(const I2S&) = delete;    ///< disable copy assignment
@@ -55,25 +55,21 @@ struct Project::periph::I2S {
     /// start transmit receive DMA and register this instance
     void init() {
         HAL_I2SEx_TransmitReceive_DMA(&hi2s, (uint16_t*) &txBuffer, (uint16_t*) &rxBuffer, DualBuffer::size() * nChannels);
-        evt.init();
         Instances.push(this);
     }
 
     /// stop DMA and unregister this instance
     void deinit() {
         HAL_I2S_DMAStop(&hi2s);
-        evt.deinit();
         Instances.pop(this);
     }
 
     void halfCallback() {
-        evt.resetFlags(FLAG_FULL);
-        evt.setFlags(FLAG_HALF);
+        flag.set(FLAG_HALF);
     }
 
     void fullCallback() {
-        evt.resetFlags(FLAG_HALF);
-        evt.setFlags(FLAG_FULL);
+        flag.set(FLAG_FULL);
     }
 
     struct ReadMonoArgs { BufferMono& buffer; bool leftOrRight = false; };
@@ -84,19 +80,10 @@ struct Project::periph::I2S {
     ///     - .leftOrRight left (false) or right (true) channel, default left 
     /// @return osStatus
     etl::Future<void> read(ReadMonoArgs args) {
-        return [this, args] (etl::Time timeout) mutable -> etl::Result<void, osStatus_t> {
-            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
-            if (err) 
-                return etl::Err(*err);
-            
+        return flag.get_future().then([this, args] (int fl) {
             auto buf = rxBuffer.begin();
-
-            if (*flag & FLAG_FULL)
+            if (fl == FLAG_FULL)
                 buf = rxBuffer.begin() + nSamples;
-            else if (*flag & FLAG_HALF)
-                buf = rxBuffer.begin();
-            else 
-                return etl::Err(osErrorResource);
 
             #ifdef PERIPH_I2S_CHANNEL_STEREO
             if (args.leftOrRight)
@@ -111,9 +98,7 @@ struct Project::periph::I2S {
             for (size_t i = 0; i < nSamples; i++)
                 args.buffer[i] = buf[i];
             #endif
-
-            return etl::Ok();
-        };
+        });
     }
 
     struct ReadStereoArgs { BufferStereo& buffer; };
@@ -123,19 +108,10 @@ struct Project::periph::I2S {
     ///     - .buffer[out] buffer stereo to store the audio data
     /// @return osStatus
     etl::Future<void> read(ReadStereoArgs args) {
-        return [this, args] (etl::Time timeout) mutable -> etl::Result<void, osStatus_t> {
-            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
-            if (err) 
-                return etl::Err(*err);
-            
+        return flag.get_future().then([this, args] (int fl) {
             auto buf = rxBuffer.begin();
-
-            if (*flag & FLAG_FULL)
+            if (fl == FLAG_FULL)
                 buf = rxBuffer.begin() + nSamples;
-            else if (*flag & FLAG_HALF)
-                buf = rxBuffer.begin();
-            else 
-                return etl::Err(osErrorResource);
 
             #ifdef PERIPH_I2S_CHANNEL_STEREO
             for (size_t i = 0; i < nSamples; i++)
@@ -147,9 +123,7 @@ struct Project::periph::I2S {
                 args.buffer[i].right = buf[i];
             }
             #endif
-
-            return etl::Ok();
-        };
+        });
     }
 
     struct WriteMonoArgs { const BufferMono& buffer; bool leftOrRight = false; };
@@ -160,19 +134,10 @@ struct Project::periph::I2S {
     ///     - .leftOrRight left (false) or right (true) channel, default left 
     /// @return osStatus
     etl::Future<void> write(WriteMonoArgs args) {
-        return [this, args] (etl::Time timeout) -> etl::Result<void, osStatus_t> {
-            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
-            if (err) 
-                return etl::Err(*err);
-            
+        return flag.get_future().then([this, args] (int fl) {
             auto buf = rxBuffer.begin();
-
-            if (*flag & FLAG_FULL)
-                buf = rxBuffer.begin();
-            else if (*flag & FLAG_HALF)
+            if (fl == FLAG_HALF)
                 buf = rxBuffer.begin() + nSamples;
-            else 
-                return etl::Err(osErrorResource);
 
             #ifdef PERIPH_I2S_CHANNEL_STEREO
             if (args.leftOrRight)
@@ -187,9 +152,7 @@ struct Project::periph::I2S {
             for (size_t i = 0; i < nSamples; i++)
                 buf[i] = args.buffer[i];
             #endif
-
-            return etl::Ok();
-        };
+        });
     }
 
     struct WriteStereoArgs { const BufferStereo& buffer; };
@@ -200,19 +163,10 @@ struct Project::periph::I2S {
     ///     - .leftOrRight left (false) or right (true) channel, default left 
     /// @return osStatus
     etl::Future<void> write(WriteStereoArgs args) {
-        return [this, args] (etl::Time timeout) -> etl::Result<void, osStatus_t> {
-            auto [flag, err] = evt.waitFlagsAny().wait(timeout);
-            if (err) 
-                return etl::Err(*err);
-            
+        return flag.get_future().then([this, args] (int fl) {
             auto buf = rxBuffer.begin();
-
-            if (*flag & FLAG_FULL)
-                buf = rxBuffer.begin();
-            else if (*flag & FLAG_HALF)
+            if (fl == FLAG_HALF)
                 buf = rxBuffer.begin() + nSamples;
-            else 
-                return etl::Err(osErrorResource);
 
             #ifdef PERIPH_I2S_CHANNEL_STEREO
             for (size_t i = 0; i < nSamples; i++)
@@ -222,9 +176,7 @@ struct Project::periph::I2S {
             for (size_t i = 0; i < nSamples; i++)
                 buf[i] = args.buffer[i].left / 2 + args.buffer[i].right / 2;
             #endif
-
-            return etl::Ok();
-        };
+        });
     }
 };
 
