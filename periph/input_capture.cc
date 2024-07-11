@@ -41,7 +41,7 @@ static Encoder* selectorEncoder(TIM_HandleTypeDef *htim) {
     return nullptr;
 }
 
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
+extern "C" void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim) {
     auto ic = selector(htim);
     if (ic) {
         ic->value.set(HAL_TIM_ReadCapturedValue(&ic->htim, ic->channel));

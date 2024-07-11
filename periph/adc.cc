@@ -18,7 +18,7 @@ static ADCD* selector(ADC_HandleTypeDef* hadc) {
     return nullptr;
 }
 
-void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
+extern "C" void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef* hadc) {
     auto adc = selector(hadc);
     if (adc == nullptr)
         return;

@@ -28,7 +28,7 @@ static PWM* selector(TIM_HandleTypeDef *htim) {
     return nullptr;
 }
 
-void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
+extern "C" void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
     auto pwm = selector(htim);
     if (pwm == nullptr)
         return;
@@ -36,7 +36,7 @@ void HAL_TIM_PWM_PulseFinishedHalfCpltCallback(TIM_HandleTypeDef *htim) {
     pwm->halfCallback();
 }
 
-void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
+extern "C" void HAL_TIM_PWM_PulseFinishedCallback(TIM_HandleTypeDef *htim) {
     auto pwm = selector(htim);
     if (pwm == nullptr)
         return;

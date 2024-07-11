@@ -8,7 +8,7 @@ using namespace Project::periph;
 
 detail::UniqueInstances<Exti*, 16> Exti::Instances;
 
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
+extern "C" void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {
     uint16_t static pinNow;
     etl::Time static timeNow;
 

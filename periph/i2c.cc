@@ -18,7 +18,7 @@ static I2C* selector(I2C_HandleTypeDef *hi2c) {
     return nullptr;
 }
 
-void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c) {
+extern "C" void HAL_I2C_MemTxCpltCallback(I2C_HandleTypeDef *hi2c) {
     auto i2c = selector(hi2c);
     if (i2c == nullptr)
         return;

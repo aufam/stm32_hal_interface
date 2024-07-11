@@ -34,6 +34,7 @@ struct Project::periph::USBD {
     /// @param len buffer length
     /// @retval @ref USBD_StatusTypeDef (see usbd_def.h)
     int transmit(const void *buf, size_t len) { 
+        #if !defined(STM32F1)
         if (isBusy) {
             for (size_t i = 0; i < PERIPH_CALLBACK_LIST_MAX_SIZE; ++i) {
                 if (pending_buffer[i] == nullptr) {
@@ -46,6 +47,7 @@ struct Project::periph::USBD {
         }
 
         isBusy = true;
+        #endif
         return CDC_Transmit_FS((uint8_t*) buf, len); 
     }
 

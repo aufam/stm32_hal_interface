@@ -18,7 +18,7 @@ static UART* selector(UART_HandleTypeDef *huart) {
     return nullptr;
 }
 
-void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+extern "C" void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     auto uart = selector(huart);
     if (uart == nullptr)
         return;
@@ -29,7 +29,7 @@ void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
     uart->init();
 }
 
-void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
+extern "C" void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
     auto uart = selector(huart);
     if (uart == nullptr)
         return;

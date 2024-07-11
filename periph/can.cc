@@ -18,6 +18,7 @@ static CAN* selector(CAN_HandleTypeDef *hcan_) {
     return nullptr;
 }
 
+extern "C" 
 #ifdef PERIPH_CAN_USE_FIFO0
 void HAL_CAN_RxFifo0MsgPendingCallback(CAN_HandleTypeDef *hcan_) {
 #endif

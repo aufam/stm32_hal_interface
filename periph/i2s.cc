@@ -19,7 +19,7 @@ static I2S* selector(I2S_HandleTypeDef *hi2s) {
     return nullptr;
 }
 
-void HAL_I2SEx_TxRxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
+extern "C" void HAL_I2SEx_TxRxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
     auto i2s = selector(hi2s);
     if (i2s == nullptr)
         return;
@@ -27,7 +27,7 @@ void HAL_I2SEx_TxRxHalfCpltCallback(I2S_HandleTypeDef *hi2s) {
     i2s->halfCallback();
 }
 
-void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s) {
+extern "C" void HAL_I2SEx_TxRxCpltCallback(I2S_HandleTypeDef *hi2s) {
     auto i2s = selector(hi2s);
     if (i2s == nullptr)
         return;
