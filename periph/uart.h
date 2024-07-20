@@ -119,8 +119,7 @@ struct Project::periph::UART {
             transmitBlocking(str, ::strlen(str)); 
             return *this;
         } else if constexpr (etl::is_same_v<T, char>) {
-            const char ch[1] = {str};
-            transmitBlocking(ch, 1); 
+            transmitBlocking(&str, 1); 
             return *this;
         }
     }
