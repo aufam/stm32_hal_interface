@@ -60,17 +60,20 @@ struct Project::periph::USBD {
         return transmit(buf, len); 
     }
 
-    /// write operator for etl::string
-    template <size_t N>
-    USBD& operator<<(const etl::String<N>& str) { 
-        transmitBlocking(str.data(), str.len()); 
-        return *this; 
-    }
-
-    /// write operator for traditional string
-    USBD& operator<<(const char *str) { 
-        transmitBlocking(str, strlen(str)); 
-        return *this; 
+    /// write operator for any type of string
+    template <typename T>
+    USBD& operator<<(const T& str) {
+        if constexpr (etl::is_same_v<T, etl::StringView> || etl::is_etl_string_v<T>) {
+            transmitBlocking(str.data(), str.len()); 
+            return *this;
+        } else if constexpr (etl::is_same_v<T, const char*> || etl::is_string_v<T>) {
+            transmitBlocking(str, ::strlen(str)); 
+            return *this;
+        } else if constexpr (etl::is_same_v<T, char>) {
+            const char ch[1] = {str};
+            transmitBlocking(ch, 1); 
+            return *this;
+        }
     }
 };
 
