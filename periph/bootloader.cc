@@ -40,9 +40,6 @@ void periph::jumpToBootLoader() {
 	USBD_DeInit(&hUsbDeviceFS);
 	#endif
 
-	// stop FreeRTOS
-    portDISABLE_INTERRUPTS();
-
     // remap memory ?
 	SYSCFG->MEMRMP = 0x01;
 
