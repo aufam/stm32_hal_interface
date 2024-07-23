@@ -5,35 +5,16 @@
 
 using namespace Project;
 
-
-// bootloader for DFU
-#if defined(STM32F3)
-#define BOOT_ADDR	0x1FFFD800
-#endif
-
-#if defined(STM32F4) || defined(STM32F2)
-#define BOOT_ADDR	0x1FFF0000
-#endif
-
-#if defined(STM32F7)
-#define BOOT_ADDR	0x1FF00000
-#endif
-
-
-#ifdef BOOT_ADDR
-
 struct boot_vectable_ {
     uint32_t Initial_SP;
     void (*Reset_Handler)(void);
 };
 
-#define BOOTVTAB	((volatile struct boot_vectable_ *)BOOT_ADDR)
-
 #ifdef HAL_PCD_MODULE_ENABLED
 extern "C" USBD_HandleTypeDef hUsbDeviceFS;
 #endif
 
-void periph::jumpToBootLoader() {
+void periph::jumpToBootLoader(size_t addr) {
     // stop USB 
 	#ifdef HAL_PCD_MODULE_ENABLED
 	USBD_Stop(&hUsbDeviceFS);
@@ -68,15 +49,11 @@ void periph::jumpToBootLoader() {
 	// reenable interrupt (?)
 	__enable_irq();
 
+	auto vtab = (volatile struct boot_vectable_ *)addr;
+
 	// set the stack pointer
-	__set_MSP(BOOTVTAB->Initial_SP);
+	__set_MSP(vtab->Initial_SP);
 
 	// jump to bootloader
-	BOOTVTAB->Reset_Handler();
+	vtab->Reset_Handler();
 }    
-
-#else
-
-void periph::jumpToBootLoader() {}
-
-#endif
