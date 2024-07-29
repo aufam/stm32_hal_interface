@@ -22,7 +22,9 @@ void periph::jumpToBootLoader(size_t addr) {
 	#endif
 
     // remap memory ?
+	#ifndef STM32F1
 	SYSCFG->MEMRMP = 0x01;
+	#endif
 
 	// disable interrupts
 	__disable_irq();
